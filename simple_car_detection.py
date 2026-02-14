@@ -5,6 +5,7 @@ import json
 from shapely.geometry import Point, Polygon, LineString
 import csv
 import torch
+import os
 print("CUDA available:", torch.cuda.is_available())
 
 def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
@@ -22,6 +23,13 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
     with open(exit_lines_path, 'r') as f:
         exit_lines_data = json.load(f)
     exit_lines = {key: LineString(value) if len(value) == 2 else LineString(value) for key, value in exit_lines_data.items()}
+
+    # Generate a unique output CSV filename based on attempt number
+    attempt = 1
+    base_output_csv = output_csv
+    while os.path.exists(output_csv):
+        output_csv = base_output_csv.replace('.csv', f'_attempt{attempt}.csv')
+        attempt += 1
 
     # Initialize CSV logging
     with open(output_csv, 'w', newline='') as csvfile:
@@ -90,7 +98,7 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
 
 if __name__ == "__main__":
     video_path = "data/roundabout.avi"
-    model_path = "yolov8n.pt"
+    model_path = "yolov8m.pt"  # Updated to use the Medium model
     roi_path = "output/roi.json"
     exit_lines_path = "output/exit_lines.json"
     output_csv = "output/car_crossings.csv"
