@@ -248,27 +248,26 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
         cv2.destroyAllWindows()
     
     # Write aggregated results to CSV
-    if crossing_counts:
-        max_minute = max(crossing_counts.keys())
-        all_exits = set()
-        for minute_data in crossing_counts.values():
-            all_exits.update(minute_data.keys())
+    if crossing_counts or exit_lines:
+        # All exits from configuration (including zeros)
+        all_exits = sorted(list(exit_lines.keys()))
         
-        all_exits = sorted(list(all_exits))
+        # Correct number of minutes (complete minutes only)
+        total_minutes = int(total_frames / (int(fps) * 60))
         
-        # Calculate totals for each exit
+        # Calculate totals for each exit (only up to valid minutes)
         exit_totals = {exit_id: 0 for exit_id in all_exits}
-        for minute_data in crossing_counts.values():
+        for minute in range(total_minutes):
             for exit_id in all_exits:
-                exit_totals[exit_id] += minute_data.get(exit_id, 0)
+                exit_totals[exit_id] += crossing_counts[minute].get(exit_id, 0)
         
         with open(output_csv, 'w', newline='') as csvfile:
             fieldnames = ['minute'] + all_exits
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             
-            # Write data for each minute
-            for minute in range(int(max_minute) + 1):
+            # Write data for each valid minute (0 to total_minutes-1)
+            for minute in range(total_minutes):
                 row = {'minute': minute}
                 for exit_id in all_exits:
                     row[exit_id] = crossing_counts[minute].get(exit_id, 0)
