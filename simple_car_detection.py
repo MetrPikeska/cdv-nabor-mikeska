@@ -92,8 +92,8 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
             frame_idx += 1
             minute = frame_idx // (int(fps) * 60)
             
-            # Get detections with tracking
-            results = model.track(frame, persist=True, classes=[2, 7], conf=0.25)
+            # Get detections with tracking (class 2 = car only, no trucks)
+            results = model.track(frame, persist=True, classes=[2], conf=0.25)
             
             detected_tracks = set()
             
@@ -193,13 +193,46 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
             cv2.putText(frame, f"Frame: {frame_idx}/{total_frames}", (10, y_offset + 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
             cv2.putText(frame, f"Tracked: {len(track_state)}", (10, y_offset + 70), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 100, 0), 2)
             
-            y_offset += 120
-            cv2.putText(frame, "Exits this minute:", (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 200), 2)
-            y_offset += 35
+            # Add statistics in bottom-right corner (two tables side by side)
+            frame_height, frame_width = frame.shape[:2]
+            
+            # Calculate cumulative totals from start
+            cumulative_totals = {exit_id: 0 for exit_id in exit_lines.keys()}
+            for m in range(minute + 1):
+                for exit_id in exit_lines.keys():
+                    cumulative_totals[exit_id] += crossing_counts[m].get(exit_id, 0)
+            
+            # Layout: two columns side by side
+            box_height = 60 + len(exit_lines) * 22
+            col_width = 150
+            total_box_width = col_width * 2 + 20  # Two columns + gap
+            
+            box_x = frame_width - total_box_width - 10
+            box_y = frame_height - box_height - 10
+            
+            # Draw white background rectangle for both columns
+            cv2.rectangle(frame, (box_x, box_y), (frame_width - 10, frame_height - 10), (255, 255, 255), -1)
+            cv2.rectangle(frame, (box_x, box_y), (frame_width - 10, frame_height - 10), (0, 0, 0), 2)
+            
+            # LEFT COLUMN: Exits this minute
+            text_y = box_y + 25
+            cv2.putText(frame, "This minute:", (box_x + 10, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+            text_y += 22
+            
             for exit_id in sorted(exit_lines.keys()):
                 exit_count = crossing_counts[minute].get(exit_id, 0)
-                cv2.putText(frame, f"{exit_id}: {exit_count}", (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 200), 1)
-                y_offset += 30
+                cv2.putText(frame, f"{exit_id}: {exit_count}", (box_x + 15, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 1)
+                text_y += 20
+            
+            # RIGHT COLUMN: Total since start
+            text_y = box_y + 25
+            cv2.putText(frame, "Total:", (box_x + col_width + 15, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 200), 2)
+            text_y += 22
+            
+            for exit_id in sorted(exit_lines.keys()):
+                total_count = cumulative_totals[exit_id]
+                cv2.putText(frame, f"{exit_id}: {total_count}", (box_x + col_width + 20, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 200), 1)
+                text_y += 20
             
             # Display frame (optional)
             if SHOW_VIDEO:
@@ -223,18 +256,32 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
         
         all_exits = sorted(list(all_exits))
         
+        # Calculate totals for each exit
+        exit_totals = {exit_id: 0 for exit_id in all_exits}
+        for minute_data in crossing_counts.values():
+            for exit_id in all_exits:
+                exit_totals[exit_id] += minute_data.get(exit_id, 0)
+        
         with open(output_csv, 'w', newline='') as csvfile:
             fieldnames = ['minute'] + all_exits
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             
+            # Write data for each minute
             for minute in range(int(max_minute) + 1):
                 row = {'minute': minute}
                 for exit_id in all_exits:
                     row[exit_id] = crossing_counts[minute].get(exit_id, 0)
                 writer.writerow(row)
+            
+            # Write total row
+            total_row = {'minute': 'TOTAL'}
+            for exit_id in all_exits:
+                total_row[exit_id] = exit_totals[exit_id]
+            writer.writerow(total_row)
         
         print(f"\nAggregated results saved to {output_csv}")
+        print(f"Total exits: {exit_totals}")
     else:
         print("No crossings detected.")
 
