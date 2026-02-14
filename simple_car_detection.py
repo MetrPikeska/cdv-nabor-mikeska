@@ -71,108 +71,120 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
     TRACK_TIMEOUT = 30  # frames
     MIN_TRACK_LENGTH = 5  # minimum frames to be considered valid
     MIN_MOVEMENT = 10  # minimum pixels movement to count as valid
+    SHOW_VIDEO = False  # Set to False to process without display, True to show video
     
     frame_idx = 0
+    print(f"Processing {total_frames} frames at {fps} fps...")
     
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        
-        frame_idx += 1
-        minute = frame_idx // (int(fps) * 60)
-        
-        # Get detections with tracking
-        results = model.track(frame, persist=True, classes=[2, 7], conf=0.25)
-        
-        detected_tracks = set()
-        
-        # Draw exit lines on frame
-        for line in exit_lines.values():
-            coords = list(line.coords)
-            for i in range(len(coords) - 1):
-                pt1 = tuple(map(int, coords[i]))
-                pt2 = tuple(map(int, coords[i + 1]))
-                cv2.line(frame, pt1, pt2, (0, 0, 255), 2)
-        
-        # Process detections
-        for result in results:
-            for box in result.boxes:
-                if box.id is None:
-                    continue
-                
-                track_id = int(box.id)
-                detected_tracks.add(track_id)
-                
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                conf = box.conf[0]
-                
-                # Use bottom-center point for more stable crossing detection
-                center_x = (x1 + x2) // 2
-                bottom_y = y2  # Bottom of bounding box
-                detection_point = Point(center_x, bottom_y)
-                
-                # Check if in ROI and not in exclusion zone
-                if roi_polygon.contains(detection_point) and (exclusion_polygon is None or not exclusion_polygon.contains(detection_point)):
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            frame_idx += 1
+            minute = frame_idx // (int(fps) * 60)
+            
+            # Get detections with tracking
+            results = model.track(frame, persist=True, classes=[2, 7], conf=0.25)
+            
+            detected_tracks = set()
+            
+            # Draw exit lines on frame
+            for line in exit_lines.values():
+                coords = list(line.coords)
+                for i in range(len(coords) - 1):
+                    pt1 = tuple(map(int, coords[i]))
+                    pt2 = tuple(map(int, coords[i + 1]))
+                    cv2.line(frame, pt1, pt2, (0, 0, 255), 2)
+            
+            # Process detections
+            for result in results:
+                for box in result.boxes:
+                    if box.id is None:
+                        continue
                     
-                    # Initialize track state if needed
-                    if track_id not in track_state:
-                        track_state[track_id] = {
-                            'detected_in_roi': True,
-                            'exits_crossed': {exit_id: False for exit_id in exit_lines.keys()},
-                            'frame_count': 1,
-                            'positions': [(center_x, bottom_y)]
-                        }
+                    track_id = int(box.id)
+                    detected_tracks.add(track_id)
+                    
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    conf = box.conf[0]
+                    
+                    # Use bottom-center point for more stable crossing detection
+                    center_x = (x1 + x2) // 2
+                    bottom_y = y2  # Bottom of bounding box
+                    detection_point = Point(center_x, bottom_y)
+                    
+                    # Check if in ROI and not in exclusion zone
+                    if roi_polygon.contains(detection_point) and (exclusion_polygon is None or not exclusion_polygon.contains(detection_point)):
+                        
+                        # Initialize track state if needed
+                        if track_id not in track_state:
+                            track_state[track_id] = {
+                                'detected_in_roi': True,
+                                'exits_crossed': {exit_id: False for exit_id in exit_lines.keys()},
+                                'frame_count': 1,
+                                'positions': [(center_x, bottom_y)]
+                            }
+                        else:
+                            track_state[track_id]['frame_count'] += 1
+                            track_state[track_id]['positions'].append((center_x, bottom_y))
+                        
+                        # Remove from inactive tracking
+                        if track_id in inactive_tracks:
+                            del inactive_tracks[track_id]
+                        
+                        # Draw bounding box
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.putText(frame, f"ID:{track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                        
+                        # Check exit line crossings (only count if not already counted)
+                        for exit_id, line in exit_lines.items():
+                            if not track_state[track_id]['exits_crossed'][exit_id]:
+                                distance = line.distance(detection_point)
+                                if distance < 10:  # Threshold for crossing
+                                    # Validate track quality before counting
+                                    if track_state[track_id]['frame_count'] >= MIN_TRACK_LENGTH:
+                                        # Check minimum movement
+                                        positions = track_state[track_id]['positions']
+                                        if len(positions) > 1:
+                                            movement = ((positions[-1][0] - positions[0][0])**2 + (positions[-1][1] - positions[0][1])**2)**0.5
+                                            if movement >= MIN_MOVEMENT:
+                                                # Count this crossing
+                                                track_state[track_id]['exits_crossed'][exit_id] = True
+                                                crossing_counts[minute][exit_id] += 1
+                                                print(f"Frame {frame_idx}: Track {track_id} crossed {exit_id} (minute {minute})")
+            
+            # Track inactive vehicles
+            for track_id in list(track_state.keys()):
+                if track_id not in detected_tracks:
+                    if track_id not in inactive_tracks:
+                        inactive_tracks[track_id] = 1
                     else:
-                        track_state[track_id]['frame_count'] += 1
-                        track_state[track_id]['positions'].append((center_x, bottom_y))
+                        inactive_tracks[track_id] += 1
                     
-                    # Remove from inactive tracking
-                    if track_id in inactive_tracks:
+                    # Remove if inactive too long
+                    if inactive_tracks[track_id] > TRACK_TIMEOUT:
+                        del track_state[track_id]
                         del inactive_tracks[track_id]
-                    
-                    # Draw bounding box
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(frame, f"ID:{track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                    
-                    # Check exit line crossings (only count if not already counted)
-                    for exit_id, line in exit_lines.items():
-                        if not track_state[track_id]['exits_crossed'][exit_id]:
-                            distance = line.distance(detection_point)
-                            if distance < 10:  # Threshold for crossing
-                                # Validate track quality before counting
-                                if track_state[track_id]['frame_count'] >= MIN_TRACK_LENGTH:
-                                    # Check minimum movement
-                                    positions = track_state[track_id]['positions']
-                                    if len(positions) > 1:
-                                        movement = ((positions[-1][0] - positions[0][0])**2 + (positions[-1][1] - positions[0][1])**2)**0.5
-                                        if movement >= MIN_MOVEMENT:
-                                            # Count this crossing
-                                            track_state[track_id]['exits_crossed'][exit_id] = True
-                                            crossing_counts[minute][exit_id] += 1
-                                            print(f"Frame {frame_idx}: Track {track_id} crossed {exit_id} (minute {minute})")
-        
-        # Track inactive vehicles
-        for track_id in list(track_state.keys()):
-            if track_id not in detected_tracks:
-                if track_id not in inactive_tracks:
-                    inactive_tracks[track_id] = 1
-                else:
-                    inactive_tracks[track_id] += 1
-                
-                # Remove if inactive too long
-                if inactive_tracks[track_id] > TRACK_TIMEOUT:
-                    del track_state[track_id]
-                    del inactive_tracks[track_id]
-        
-        # Display frame
-        cv2.imshow('Car Detection', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            
+            # Display progress
+            if frame_idx % 30 == 0:
+                pct = (frame_idx / total_frames) * 100
+                print(f"  Progress: {frame_idx}/{total_frames} frames ({pct:.1f}%)")
+            
+            # Display frame (optional)
+            if SHOW_VIDEO:
+                cv2.imshow('Car Detection', frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+    except KeyboardInterrupt:
+        print("\nProcessing interrupted by user.")
     
     # Release resources
     cap.release()
-    cv2.destroyAllWindows()
+    if SHOW_VIDEO:
+        cv2.destroyAllWindows()
     
     # Write aggregated results to CSV
     if crossing_counts:
