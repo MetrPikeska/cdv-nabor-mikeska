@@ -5,6 +5,7 @@ import pandas as pd
 from ultralytics import YOLO
 import logging
 from typing import List, Tuple, Dict, Set
+import torch
 
 # --- Funkce pro načtení konfigurace ---
 def load_config(config_path: str) -> Dict:
@@ -51,8 +52,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def load_model(model_path: str) -> YOLO:
     """Načte YOLO model."""
     try:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         model = YOLO(model_path)
-        logging.info(f"Model '{model_path}' byl úspěšně načten.")
+        model.to(device)  # Explicitly move the model to the selected device
+        logging.info(f"Model '{model_path}' byl úspěšně načten na zařízení: {device}.")
         return model
     except Exception as e:
         logging.error(f"Chyba při načítání modelu: {e}")
@@ -60,11 +63,11 @@ def load_model(model_path: str) -> YOLO:
 
 def process_frame(model: YOLO, frame: np.ndarray, confidence_threshold: float, roi_mask: np.ndarray = None) -> List:
     """Zpracuje jeden frame videa a detekuje vozidla."""
-    
     if roi_mask is not None:
         frame = cv2.bitwise_and(frame, frame, mask=roi_mask)
 
-    results = model(frame, classes=[2], conf=confidence_threshold, verbose=False) # 2 = 'car' v COCO
+    results = model(frame, classes=[2], conf=confidence_threshold, verbose=True)  # Verbose for debugging
+    logging.info(f"Detections: {results[0].boxes.data.cpu().numpy()}")  # Log detections
     return results[0].boxes.data.cpu().numpy()
 
 def update_tracker(detections: List) -> Dict[int, List[Tuple[int, int]]]:
@@ -153,14 +156,15 @@ def export_results(counts: Dict[int, Dict[int, int]], output_path: str):
 def visualize_frame(frame: np.ndarray, detections: List, lines: Dict):
     """Vykreslí detekce a čáry na frame."""
     for det in detections:
-        x1, y1, x2, y2, _, _ = map(int, det)
+        x1, y1, x2, y2, conf, cls = map(int, det[:6])  # Ensure correct unpacking
         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        cv2.putText(frame, f"{cls} {conf:.2f}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
     for exit_id, line in lines.items():
         cv2.line(frame, line[0], line[1], (0, 0, 255), 2)
         cv2.putText(frame, f"Exit {exit_id}", (line[0][0], line[0][1] - 10), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-    
+
     cv2.imshow("Traffic Analysis", frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         return False

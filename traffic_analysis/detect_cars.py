@@ -1,11 +1,9 @@
 import cv2
 import os
-import sys
-sys.path.insert(0, 'C:/Users/Metr/Documents/GitHub/cdv-nabor-mikeska/traffic_analysis/yolov5')  # Adjust path to YOLOv5 repo
-from models.common import DetectMultiBackend
-from utils.general import non_max_suppression, scale_coords
-from utils.plots import Annotator
-from utils.torch_utils import select_device
+from yolov5.models.common import DetectMultiBackend
+from yolov5.utils.general import non_max_suppression, scale_coords
+from yolov5.utils.plots import Annotator
+from yolov5.utils.torch_utils import select_device
 
 def detect_cars(video_path, model_path, output_dir):
     # Load YOLOv5 model
