@@ -24,6 +24,14 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
         exit_lines_data = json.load(f)
     exit_lines = {key: LineString(value) if len(value) == 2 else LineString(value) for key, value in exit_lines_data.items()}
 
+    # Load exclusion polygon (if any)
+    exclusion_polygon = None
+    exclusion_path = "output/exclusion.json"  # Path to exclusion polygon file
+    if os.path.exists(exclusion_path):
+        with open(exclusion_path, 'r') as f:
+            exclusion_data = json.load(f)
+        exclusion_polygon = Polygon(exclusion_data[0])
+
     # Generate a unique output CSV filename based on attempt number
     attempt = 1
     base_output_csv = output_csv
@@ -69,12 +77,12 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
                     conf = box.conf[0]
                     label = f"Car {conf:.2f}"
 
-                    # Check if the center of the bounding box is inside the ROI
+                    # Check if the center of the bounding box is inside the ROI and not in the exclusion zone
                     center_x = (x1 + x2) // 2
                     center_y = (y1 + y2) // 2
                     center_point = Point(center_x, center_y)
 
-                    if roi_polygon.contains(center_point):
+                    if roi_polygon.contains(center_point) and (exclusion_polygon is None or not exclusion_polygon.contains(center_point)):
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
