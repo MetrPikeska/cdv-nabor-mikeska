@@ -6,14 +6,13 @@ Tento projekt poskytuje skript v jazyce Python pro analýzu videozáznamu z kruh
 
 ```
 .
-├── traffic_analysis/
-│   ├── data/
-│   │   └── roundabout.avi  (vstupní video)
-│   ├── output/
-│   │   └── traffic_counts.csv (výstupní soubor s výsledky)
-│   ├── main.py             (hlavní skript)
-│   ├── config.ini          (konfigurační soubor)
-│   └── requirements.txt    (seznam závislostí)
+├── data/
+│   └── roundabout.avi  (vstupní video)
+├── output/
+│   └── traffic_counts.csv (výstupní soubor s výsledky)
+├── simple_car_detection.py (hlavní skript)
+├── config.ini          (konfigurační soubor)
+├── requirements.txt    (seznam závislostí)
 └── README.md
 ```
 
@@ -43,12 +42,12 @@ Tento projekt poskytuje skript v jazyce Python pro analýzu videozáznamu z kruh
 3.  **Instalace závislostí:**
     Nainstalujte všechny potřebné knihovny pomocí přiloženého souboru `requirements.txt`.
     ```bash
-    pip install -r traffic_analysis/requirements.txt
+    pip install -r requirements.txt
     ```
 
 ## Konfigurace
 
-Veškerá nastavení skriptu se provádí v souboru `traffic_analysis/config.ini`.
+Veškerá nastavení skriptu se provádí v souboru `config.ini`.
 
 -   `[general]`:
     -   `video_path`: Cesta k vstupnímu video souboru.
@@ -64,17 +63,16 @@ Veškerá nastavení skriptu se provádí v souboru `traffic_analysis/config.ini
 ## Použití
 
 1.  **Umístění videa:**
-    Ujistěte se, že váš video soubor (např. `roundabout.avi`) je umístěn ve složce `traffic_analysis/data/`.
+    Ujistěte se, že váš video soubor (např. `roundabout.avi`) je umístěn ve složce `data/`.
 
 2.  **Spuštění analýzy:**
-    Přejděte do složky `traffic_analysis` a spusťte hlavní skript.
+    Spusťte hlavní skript.
     ```bash
-    cd traffic_analysis
-    python main.py
+    python simple_car_detection.py
     ```
 
 3.  **Výsledky:**
-    Po dokončení analýzy naleznete soubor `traffic_counts.csv` ve složce `traffic_analysis/output/`. Soubor obsahuje agregovaná data o počtu vozidel, která projela jednotlivými výjezdy, a to v minutových intervalech.
+    Po dokončení analýzy naleznete soubor `traffic_counts.csv` ve složce `output/`. Soubor obsahuje agregovaná data o počtu vozidel, která projela jednotlivými výjezdy, a to v minutových intervalech.
 
 ## Poznámky
 
