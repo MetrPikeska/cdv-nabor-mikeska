@@ -65,7 +65,13 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
     # State management for tracking
-    track_state = {}  # track_id -> {'detected_in_roi': bool, 'exits_crossed': {exit_id: bool}, 'frame_count': int, 'positions': []}
+    # track_id -> {
+    #   'detected_in_roi': bool,
+    #   'exits_state': {exit_id: {'inside': bool, 'counted': bool}},
+    #   'frame_count': int,
+    #   'last_position': (x, y)
+    # }
+    track_state = {}
     crossing_counts = defaultdict(lambda: defaultdict(int))  # minute -> exit_id -> count
     inactive_tracks = {}  # track_id -> frames_inactive
     
@@ -92,10 +98,18 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
             detected_tracks = set()
             
             # Draw exit polygons on frame
-            for line in exit_lines.values():
-                coords = list(line.exterior.coords)
+            for exit_id, polygon in exit_lines.items():
+                coords = list(polygon.exterior.coords)
                 pts = np.array(coords, dtype=np.int32)
                 cv2.polylines(frame, [pts], True, (0, 0, 255), 2)
+                
+                # Add counter for this exit
+                exit_count = crossing_counts[minute].get(exit_id, 0)
+                # Find centroid of polygon for text placement
+                centroid_x = int(np.mean([c[0] for c in coords]))
+                centroid_y = int(np.mean([c[1] for c in coords]))
+                cv2.putText(frame, f"{exit_id}: {exit_count}", (centroid_x - 30, centroid_y), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 2)
             
             # Process detections
             for result in results:
@@ -121,13 +135,13 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
                         if track_id not in track_state:
                             track_state[track_id] = {
                                 'detected_in_roi': True,
-                                'exits_crossed': {exit_id: False for exit_id in exit_lines.keys()},
+                                'exits_state': {exit_id: {'inside': False, 'counted': False} for exit_id in exit_lines.keys()},
                                 'frame_count': 1,
-                                'positions': [(center_x, bottom_y)]
+                                'last_position': (center_x, bottom_y)
                             }
                         else:
                             track_state[track_id]['frame_count'] += 1
-                            track_state[track_id]['positions'].append((center_x, bottom_y))
+                            track_state[track_id]['last_position'] = (center_x, bottom_y)
                         
                         # Remove from inactive tracking
                         if track_id in inactive_tracks:
@@ -137,23 +151,23 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(frame, f"ID:{track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                         
-                        # Check exit polygon crossings (only count if not already counted)
+                        # Check exit polygon state transitions (state-based counting)
                         for exit_id, polygon in exit_lines.items():
-                            if not track_state[track_id]['exits_crossed'][exit_id]:
-                                # Check if vehicle is near or inside the exit polygon
-                                distance = polygon.distance(detection_point)
-                                if distance < 20:  # Threshold for entering exit area
-                                    # Validate track quality before counting
-                                    if track_state[track_id]['frame_count'] >= MIN_TRACK_LENGTH:
-                                        # Check minimum movement
-                                        positions = track_state[track_id]['positions']
-                                        if len(positions) > 1:
-                                            movement = ((positions[-1][0] - positions[0][0])**2 + (positions[-1][1] - positions[0][1])**2)**0.5
-                                            if movement >= MIN_MOVEMENT:
-                                                # Count this crossing
-                                                track_state[track_id]['exits_crossed'][exit_id] = True
-                                                crossing_counts[minute][exit_id] += 1
-                                                print(f"Frame {frame_idx}: Track {track_id} crossed {exit_id} (minute {minute})")
+                            current_inside = polygon.contains(detection_point)
+                            previous_inside = track_state[track_id]['exits_state'][exit_id]['inside']
+                            counted = track_state[track_id]['exits_state'][exit_id]['counted']
+                            
+                            # Update current state
+                            track_state[track_id]['exits_state'][exit_id]['inside'] = current_inside
+                            
+                            # Count only on transition: was inside, now outside, and not yet counted
+                            if previous_inside and not current_inside and not counted:
+                                # Validate track quality before counting
+                                if track_state[track_id]['frame_count'] >= MIN_TRACK_LENGTH:
+                                    # Mark as counted to prevent duplicate counts
+                                    track_state[track_id]['exits_state'][exit_id]['counted'] = True
+                                    crossing_counts[minute][exit_id] += 1
+                                    print(f"Frame {frame_idx}: Track {track_id} exited {exit_id} (minute {minute})")
             
             # Track inactive vehicles
             for track_id in list(track_state.keys()):
@@ -172,6 +186,20 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
             if frame_idx % 30 == 0:
                 pct = (frame_idx / total_frames) * 100
                 print(f"  Progress: {frame_idx}/{total_frames} frames ({pct:.1f}%)")
+            
+            # Add global counter display in top-left corner
+            y_offset = 30
+            cv2.putText(frame, f"Minute: {minute}", (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+            cv2.putText(frame, f"Frame: {frame_idx}/{total_frames}", (10, y_offset + 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+            cv2.putText(frame, f"Tracked: {len(track_state)}", (10, y_offset + 70), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 100, 0), 2)
+            
+            y_offset += 120
+            cv2.putText(frame, "Exits this minute:", (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 200), 2)
+            y_offset += 35
+            for exit_id in sorted(exit_lines.keys()):
+                exit_count = crossing_counts[minute].get(exit_id, 0)
+                cv2.putText(frame, f"{exit_id}: {exit_count}", (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 200), 1)
+                y_offset += 30
             
             # Display frame (optional)
             if SHOW_VIDEO:
