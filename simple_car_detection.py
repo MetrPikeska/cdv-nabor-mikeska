@@ -5,6 +5,7 @@ import json
 from shapely.geometry import Point, Polygon, LineString
 import csv
 import os
+import numpy as np
 from collections import defaultdict
 
 print("CUDA available:", torch.cuda.is_available())
@@ -31,10 +32,10 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
         roi_data = json.load(f)
     roi_polygon = Polygon(roi_data[0])
 
-    # Load exit lines
+    # Load exit lines/polygons
     with open(exit_lines_path, 'r') as f:
         exit_lines_data = json.load(f)
-    exit_lines = {key: LineString(value) for key, value in exit_lines_data.items()}
+    exit_lines = {key: Polygon(value) for key, value in exit_lines_data.items()}
 
     # Load exclusion polygon (if any)
     exclusion_polygon = None
@@ -90,13 +91,11 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
             
             detected_tracks = set()
             
-            # Draw exit lines on frame
+            # Draw exit polygons on frame
             for line in exit_lines.values():
-                coords = list(line.coords)
-                for i in range(len(coords) - 1):
-                    pt1 = tuple(map(int, coords[i]))
-                    pt2 = tuple(map(int, coords[i + 1]))
-                    cv2.line(frame, pt1, pt2, (0, 0, 255), 2)
+                coords = list(line.exterior.coords)
+                pts = np.array(coords, dtype=np.int32)
+                cv2.polylines(frame, [pts], True, (0, 0, 255), 2)
             
             # Process detections
             for result in results:
@@ -138,11 +137,12 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(frame, f"ID:{track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                         
-                        # Check exit line crossings (only count if not already counted)
-                        for exit_id, line in exit_lines.items():
+                        # Check exit polygon crossings (only count if not already counted)
+                        for exit_id, polygon in exit_lines.items():
                             if not track_state[track_id]['exits_crossed'][exit_id]:
-                                distance = line.distance(detection_point)
-                                if distance < 10:  # Threshold for crossing
+                                # Check if vehicle is near or inside the exit polygon
+                                distance = polygon.distance(detection_point)
+                                if distance < 20:  # Threshold for entering exit area
                                     # Validate track quality before counting
                                     if track_state[track_id]['frame_count'] >= MIN_TRACK_LENGTH:
                                         # Check minimum movement
