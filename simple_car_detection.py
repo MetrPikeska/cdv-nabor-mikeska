@@ -92,8 +92,8 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
             frame_idx += 1
             minute = frame_idx // (int(fps) * 60)
             
-            # Get detections with tracking (class 2 = car only, no trucks)
-            results = model.track(frame, persist=True, classes=[2], conf=0.25)
+            # Get detections with tracking (class 2 = car, class 7 = truck)
+            results = model.track(frame, persist=True, classes=[2, 7], conf=0.25)
             
             detected_tracks = set()
             
