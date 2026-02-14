@@ -71,7 +71,7 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
     TRACK_TIMEOUT = 30  # frames
     MIN_TRACK_LENGTH = 5  # minimum frames to be considered valid
     MIN_MOVEMENT = 10  # minimum pixels movement to count as valid
-    SHOW_VIDEO = False  # Set to False to process without display, True to show video
+    SHOW_VIDEO = True  # Set to False to process without display, True to show video
     
     frame_idx = 0
     print(f"Processing {total_frames} frames at {fps} fps...")
