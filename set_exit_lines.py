@@ -12,13 +12,17 @@ def click_event(event, x, y, flags, params):
     if event == cv2.EVENT_LBUTTONDOWN:
         current_line.append((x, y))
         cv2.circle(image, (x, y), 5, (0, 0, 255), -1)
-        if len(current_line) == 2:
-            # Nakreslení čáry
-            cv2.line(image, current_line[0], current_line[1], (0, 255, 0), 2)
+        if len(current_line) > 1:
+            # Nakreslení čáry mezi posledními dvěma body
+            cv2.line(image, current_line[-2], current_line[-1], (0, 255, 0), 2)
+        cv2.imshow('Set Exit Lines', image)
+    elif event == cv2.EVENT_RBUTTONDOWN:
+        if current_line:
+            # Uložení aktuální linie jako MultiLineString
             exit_lines[f"exit_{line_id}"] = current_line
             current_line = []
             line_id += 1
-        cv2.imshow('Set Exit Lines', image)
+            print(f"Linie exit_{line_id - 1} byla uložena.")
 
 # Načtení videa
 video_path = 'data/roundabout.avi'
@@ -39,7 +43,8 @@ if not ret:
 cv2.imshow('Set Exit Lines', image)
 cv2.setMouseCallback('Set Exit Lines', click_event)
 
-print("Klikněte levým tlačítkem pro nastavení dvou bodů každé čáry.")
+print("Klikněte levým tlačítkem pro přidání bodů do linie.")
+print("Klikněte pravým tlačítkem pro ukončení aktuální linie.")
 print("Stiskněte klávesu 'q' pro ukončení.")
 cv2.waitKey(0)
 
