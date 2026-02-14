@@ -1,12 +1,19 @@
 import cv2
 from ultralytics import YOLO
 import torch
+import json
+from shapely.geometry import Point, Polygon
 
-def detect_cars(video_path, model_path):
+def detect_cars(video_path, model_path, roi_path):
     # Load YOLO model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = YOLO(model_path)
     model.to(device)  # Explicitly move the model to GPU if available
+
+    # Load ROI polygon
+    with open(roi_path, 'r') as f:
+        roi_data = json.load(f)
+    roi_polygon = Polygon(roi_data[0])
 
     # Open video file
     cap = cv2.VideoCapture(video_path)
@@ -28,8 +35,13 @@ def detect_cars(video_path, model_path):
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 conf = box.conf[0]
                 label = f"Car {conf:.2f}"
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+                # Check if the center of the bounding box is inside the ROI
+                center_x = (x1 + x2) // 2
+                center_y = (y1 + y2) // 2
+                if roi_polygon.contains(Point(center_x, center_y)):
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         # Display the frame
         cv2.imshow('Car Detection', frame)
@@ -43,5 +55,6 @@ def detect_cars(video_path, model_path):
 if __name__ == "__main__":
     video_path = "data/roundabout.avi"
     model_path = "yolov8n.pt"
+    roi_path = "output/roi.json"
 
-    detect_cars(video_path, model_path)
+    detect_cars(video_path, model_path, roi_path)
