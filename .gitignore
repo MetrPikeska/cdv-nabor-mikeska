@@ -1,2 +1,4 @@
 .vscode/settings.json
 traffic_analysis/data/kruhac_orig 3.avi
+
+traffic_analysis/.venv/
