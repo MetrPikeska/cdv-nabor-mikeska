@@ -4,6 +4,8 @@ import torch
 import json
 from shapely.geometry import Point, Polygon, LineString
 import csv
+import torch
+print("CUDA available:", torch.cuda.is_available())
 
 def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
     # Load YOLO model
@@ -18,7 +20,8 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
 
     # Load exit lines
     with open(exit_lines_path, 'r') as f:
-        exit_lines = {key: LineString(value) for key, value in json.load(f).items()}
+        exit_lines_data = json.load(f)
+    exit_lines = {key: LineString(value) if len(value) == 2 else LineString(value) for key, value in exit_lines_data.items()}
 
     # Initialize CSV logging
     with open(output_csv, 'w', newline='') as csvfile:
@@ -48,8 +51,8 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
                 pt1, pt2 = tuple(map(int, line.coords[0])), tuple(map(int, line.coords[1]))
                 cv2.line(frame, pt1, pt2, (0, 0, 255), 2)
 
-            # Perform detection
-            results = model(frame, classes=[2, 7], conf=0.25)  # Class 2 corresponds to 'car', class 7 corresponds to 'truck' in COCO dataset
+            # Perform detection with tracking enabled
+            results = model.track(frame, persist=True, classes=[2, 7], conf=0.25)  # Enable BYTETrack for cars and trucks
 
             # Draw bounding boxes and labels on the frame
             for result in results:
