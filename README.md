@@ -7,48 +7,113 @@ This project provides Python scripts for analyzing video recordings from a round
 ```
 .
 ├── data/
-│   └── roundabout.avi              (input video file)
+│   └── roundabout.avi              (input video file - add your own)
 ├── output/
 │   ├── roi.json                    (ROI polygon configuration)
 │   ├── exit_lines.json             (exit polygon definitions)
 │   ├── exclusion.json              (exclusion zone polygon)
 │   └── car_crossings.csv           (output results)
+├── 00_setup_detection_roi.py       (script to define ROI)
+├── 00_setup_exit_polygons.py       (script to define exit polygons)
 ├── 01_detect_and_count.py          (main detection and counting script)
-├── yolov8m.pt                      (YOLOv8 model file)
+├── yolov8m.pt                      (YOLOv8 model file - MUST be downloaded separately)
 ├── requirements.txt                (project dependencies)
 └── README.md
 ```
 
+**Note:** The ZIP file does NOT include:
+- `yolov8m.pt` - Download separately (see Installation Step 4)
+- `data/roundabout.avi` - Add your own video file
+- `.venv/` - Create with `python -m venv .venv`
+
 ## Installation
 
-1. **Clone the repository:**
+### Step 0: Extract the ZIP File
+The project is distributed as a compressed ZIP file. Extract it to get started:
+
+1. **Windows (File Explorer):**
+   - Right-click on `cdv-nabor-mikeska.zip`
+   - Select "Extract All..."
+   - Choose destination folder
+   - Click "Extract"
+
+2. **Command Line (Windows PowerShell):**
+   ```powershell
+   Expand-Archive -Path "cdv-nabor-mikeska.zip" -DestinationPath "C:\path\to\extract"
+   cd C:\path\to\extract\cdv-nabor-mikeska
+   ```
+
+3. **macOS/Linux (Terminal):**
    ```bash
-   git clone <repository_url>
+   unzip cdv-nabor-mikeska.zip
    cd cdv-nabor-mikeska
    ```
 
-2. **Create and activate virtual environment:**
-   ```bash
-   python -m venv .venv
-   ```
+### Step 1: Clone the repository or Prepare the Project
+If extracted from ZIP, the project is already ready. If cloning from Git:
+```bash
+git clone <repository_url>
+cd cdv-nabor-mikeska
+```
+
+### Step 2: Create and Activate Virtual Environment
+```bash
+python -m venv .venv
+```
+
+Activate environment:
+- Windows (PowerShell):
+  ```powershell
+  .\.venv\Scripts\Activate.ps1
+  ```
+- macOS/Linux:
+  ```bash
+  source .venv/bin/activate
+  ```
+
+### Step 3: Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### Step 4: Download YOLOv8 Model
+The YOLOv8 model file is **NOT included in the ZIP** due to its size (~50MB). You must download it separately:
+
+**Option A: Automatic Download (Recommended)**
+Simply run the detection script - it will auto-download the model on first run:
+```bash
+python 01_detect_and_count.py
+```
+The script will download `yolov8m.pt` automatically to the project root.
+
+**Option B: Manual Download**
+1. Download from Ultralytics releases:
+   - Visit: https://github.com/ultralytics/assets/releases
+   - Download `yolov8m.pt`
    
-   Activate environment:
-   - Windows (PowerShell):
-     ```powershell
-     .\.venv\Scripts\Activate.ps1
-     ```
-   - macOS/Linux:
-     ```bash
-     source .venv/bin/activate
-     ```
-
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
+2. Place in project root directory:
+   ```
+   cdv-nabor-mikeska/
+   ├── yolov8m.pt
+   ├── 01_detect_and_count.py
+   └── ...
    ```
 
-4. **Download YOLOv8 model:**
-   The script requires `yolov8m.pt` model file. Place it in the project root directory.
+3. Or download via command line:
+   ```bash
+   # Windows
+   Invoke-WebRequest -Uri "https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8m.pt" -OutFile "yolov8m.pt"
+   
+   # macOS/Linux
+   wget https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8m.pt
+   ```
+
+**Verify Installation:**
+```bash
+# Check if model is present
+ls yolov8m.pt  # macOS/Linux
+dir yolov8m.pt  # Windows
+```
 
 ## Configuration
 
