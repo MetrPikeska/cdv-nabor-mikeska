@@ -13,8 +13,6 @@ This project provides Python scripts for analyzing video recordings from a round
 │   ├── exit_lines.json             (exit polygon definitions)
 │   ├── exclusion.json              (exclusion zone polygon)
 │   └── car_crossings.csv           (output results)
-├── 00_setup_detection_roi.py       (script to define ROI)
-├── 00_setup_exit_polygons.py       (script to define exit polygons)
 ├── 01_detect_and_count.py          (main detection and counting script)
 ├── yolov8m.pt                      (YOLOv8 model file - MUST be downloaded separately)
 ├── requirements.txt                (project dependencies)
