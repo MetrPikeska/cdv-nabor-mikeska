@@ -8,8 +8,7 @@ data/roundabout.avi
 traffic_analysis/data/kruhac_orig 3.avi
 
 # Output files
-output/
-*.csv
+
 
 # Python cache
 __pycache__/
