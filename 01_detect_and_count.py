@@ -180,9 +180,9 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
             
             # Přidání globálního zobrazení čítače v levém horním rohu
             y_offset = 30
-            cv2.putText(frame, f"Minuta: {minute}", (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
-            cv2.putText(frame, f"Snímek: {frame_idx}/{total_frames}", (10, y_offset + 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
-            cv2.putText(frame, f"Sledovaná: {len(track_state)}", (10, y_offset + 70), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 100, 0), 2)
+            cv2.putText(frame, f"Min: {minute}", (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+            cv2.putText(frame, f"Frame: {frame_idx}/{total_frames}", (10, y_offset + 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+            cv2.putText(frame, f"Tracked: {len(track_state)}", (10, y_offset + 70), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 100, 0), 2)
             
             # Přidání statistik v pravém dolním rohu (dva stoly vedle sebe)
             frame_height, frame_width = frame.shape[:2]
@@ -207,7 +207,7 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
             
             # LEVÝ SLOUPEC: Výjezdy tuto minutu
             text_y = box_y + 25
-            cv2.putText(frame, "Tuto minutu:", (box_x + 10, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+            cv2.putText(frame, "This min:", (box_x + 10, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
             text_y += 22
             
             for exit_id in sorted(exit_lines.keys()):
@@ -217,7 +217,7 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
             
             # PRAVÝ SLOUPEC: Celkem od začátku
             text_y = box_y + 25
-            cv2.putText(frame, "Celkem:", (box_x + col_width + 15, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 200), 2)
+            cv2.putText(frame, "Total:", (box_x + col_width + 15, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 200), 2)
             text_y += 22
             
             for exit_id in sorted(exit_lines.keys()):
@@ -227,7 +227,7 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
             
             # Zobrazení snímku (volitelné)
             if SHOW_VIDEO:
-                cv2.imshow('Detekce vozidel', frame)
+                cv2.imshow('Car Detection', frame)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
     except KeyboardInterrupt:
