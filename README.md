@@ -7,7 +7,7 @@ This project provides Python scripts for analyzing video recordings from a round
 ```
 .
 ├── data/
-│   └── roundabout.avi              (input video file - add your own)
+│   └── kruhac_orig 3.avi           (input video file - add your own)
 ├── output/
 │   ├── roi.json                    (ROI polygon configuration)
 │   ├── exit_lines.json             (exit polygon definitions)
@@ -21,7 +21,7 @@ This project provides Python scripts for analyzing video recordings from a round
 
 **Note:** The ZIP file does NOT include:
 - `yolov8m.pt` - Download separately (see Installation Step 4)
-- `data/roundabout.avi` - Add your own video file
+- `data/kruhac_orig 3.avi` - Add your own video file
 - `.venv/` - Create with `python -m venv .venv`
 
 ## Installation
@@ -136,7 +136,7 @@ This creates `output/exit_lines.json` with polygon definitions for each exit.
 ## Usage
 
 1. **Place input video:**
-   Ensure your video file (`roundabout.avi`) is placed in the `data/` directory.
+   Ensure your video file (`kruhac_orig 3.avi`) is placed in the `data/` directory.
 
 2. **Run detection and counting:**
    ```bash

@@ -278,7 +278,7 @@ def detect_cars(video_path, model_path, roi_path, exit_lines_path, output_csv):
 
 
 if __name__ == "__main__":
-    video_path = "data/roundabout.avi"
+    video_path = "data/kruhac_orig 3.avi"
     model_path = "yolov8m.pt"
     roi_path = "output/roi.json"
     exit_lines_path = "output/exit_lines.json"

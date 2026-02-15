@@ -4,8 +4,7 @@ venv/
 env/
 
 # Video files
-data/roundabout.avi
-traffic_analysis/data/kruhac_orig 3.avi
+data/kruhac_orig 3.avi
 
 # Output files
 .vscode/
